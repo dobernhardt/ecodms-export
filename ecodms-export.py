@@ -57,10 +57,10 @@ def slugify(value, allow_unicode=False):
 @click.option('--user',show_default=True,help="Username to access the ecodms system",required=True)
 @click.option('--password',help="password to access the ecodms system",required=True)
 @click.option('--archive-id',default=1,show_default=True,help="Archive ID to be used. In a default ecodms instance there is only one archive")
-@click.option('--ecodms-export-dir',help="optional directory containing an export done via the ecodms client. This export can be used to limit the number of required API download calls")
+@click.option('--cache-dir',help="optional directory caching directory to limit repeated downloads from ecodms")
 @click.option('--name-template',default="{year}/{folder}/{docart}/{cdate}_{docid}_{bemerkung}",show_default=True,help="Template for the exported filenames.")
 @click.argument('export_dir')
-def cli(debug,host,port,user,password,ecodms_export_dir,export_dir,archive_id,name_template,export_json):
+def cli(debug,host,port,user,password,cache_dir,export_dir,archive_id,name_template,export_json):
     """This script exports the documents stored in the ecodms document management system into the the EXPORT_DIR directory.
     It uses the meta information to create the folder hierarchy and filenames. Optionally all meta information can be dumped as json next to the documents.
     """
@@ -144,17 +144,17 @@ def cli(debug,host,port,user,password,ecodms_export_dir,export_dir,archive_id,na
                     if not os.path.isdir (target_dir):
                         logger.info ("Creating directory {}".format(target_dir))
                         os.makedirs(target_dir)
-                    need_to_download = True
-                    # if an ecodms export was provided we try to look for a file docid_*
-                    if not ecodms_export_dir is None:
-                        filename_match = glob.glob("{}/{}_*".format(ecodms_export_dir,doc['docId']))
+                    found_in_cache = False
+                    # if an cache directory was defined we first look there
+                    if not cache_dir is None:
+                        filename_match = glob.glob("{}/{}_*".format(cache_dir,doc['docId']))
                         if len(filename_match)>0:
                             logger.debug("{} => {}".format(filename_match[0],target_filename_pdf))
                             shutil.copy2(filename_match[0],target_filename_pdf)
-                            need_to_download = False
+                            found_in_cache = True
                         else:
-                            logger.warning("Did not find a matching filename for doc #{}".format(doc['docId']))
-                    if need_to_download: # only if either no ecodms_export was provided or no document was found for docid
+                            logger.debug("Did not find a matching filename for doc #{} in cache".format(doc['docId']))
+                    if not found_in_cache: 
                         url = "{}/document/{}".format(api_endpoint,doc['docId'])
                         logger.debug("GET {}".format(url))
                         response = session.get (url)
@@ -162,6 +162,9 @@ def cli(debug,host,port,user,password,ecodms_export_dir,export_dir,archive_id,na
                             logger.error ("Failed to retrieve document file for doc#{}. Got status code {}".format(doc['docId'],response.status_code))
                         else:
                             open(target_filename_pdf, 'wb').write(response.content)
+                            if not cache_dir is None:
+                                # use a naming pattern for cache file that is compatible to the manual ecodms export to be able to prepopulate the cache with a manual export
+                                shutil.copy2(target_filename_pdf,os.path.join(cache_dir,"{}_.pdf".format(doc['docId'])))
                 if export_json and not os.path.exists(target_filename_json):
                     with open(target_filename_json, 'w') as outfile:
                         json.dump(doc, outfile, indent=4)
