@@ -170,22 +170,9 @@ def cli(debug,host,port,user,password,ecodms_export_dir,export_dir,archive_id,na
                 logger.error ("Caught exception while processing document #{}".format(doc['docId']))
                 raise
         min_doc_id = min_doc_id + doc_id_incr
-
-
-
-
-
-
-    
-
-
     url = "{}/disconnect".format(api_endpoint)
     logger.debug("GET {}".format(url))
     response = session.get(url)
-
-    
-
-
     
 
 
