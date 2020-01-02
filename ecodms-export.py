@@ -184,7 +184,7 @@ if __name__ == '__main__':
         if (sys.version_info[0]<3) or (sys.version_info[1]<5):
             _logger.error ("At least python 3.5 is required")
         else:
-            cli()
+            cli(auto_envvar_prefix='ECODMS_EXPORT')
     except SystemExit as ex:
         sys.exit(ex.code)
     except:
